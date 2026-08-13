@@ -3,7 +3,54 @@
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/pointing.h>
 
-#define MOUSE 6
+/* ===== Layer indices =====
+ * L_MOUSE must match <&zip_mouse_temp_layer N ...> in Pyuron_R.overlay.
+ * Names are prefixed so they cannot collide with anything the
+ * included headers already define.
+ */
+#define L_BASE   0
+#define L_SYM    1   // symbols / numbers    - Eisu hold  (pos 34)
+#define L_NAV    2   // cursor / window      - Space hold (pos 35)
+#define L_FUNC   3   // F-keys / mouse click - Enter hold (pos 37)
+#define L_MOUSE  4   // click only           - trackball auto ON
+#define L_SYS    5   // bluetooth / boot     - Kana hold  (pos 38)
+
+/* ===== JIS (Japanese 106/109) symbol aliases =====
+ * Precondition: OS keyboard layout = JIS on ALL hosts.
+ * ZMK sends US-position HID codes; these map them to JIS output.
+ * Unchanged in JIS (kept as US names): ! # $ % , . / and digits/keypad.
+ */
+#define JP_CIRC  EQUAL        // ^
+#define JP_AT    LBKT         // @
+#define JP_LBKT  RBKT         // [
+#define JP_RBKT  BSLH         // ]
+#define JP_COLON SQT          // :
+#define JP_BSLH  INT1         // \  (ろ key)
+#define JP_YEN   INT3         // ¥  (= backslash 0x5C on Windows JIS)
+#define JP_PLUS  LS(SEMI)     // +
+#define JP_ASTR  LS(SQT)      // *
+#define JP_EQL   LS(MINUS)    // =
+#define JP_TILDE LS(EQUAL)    // ~
+#define JP_GRAVE LS(LBKT)     // `
+#define JP_LBRC  LS(RBKT)     // {
+#define JP_RBRC  LS(BSLH)     // }
+#define JP_PIPE  LS(INT3)     // |
+#define JP_UNDER LS(INT1)     // _
+#define JP_DQT   LS(N2)       // "
+#define JP_AMPS  LS(N6)       // &
+#define JP_QUOT  LS(N7)       // '
+#define JP_LPAR  LS(N8)       // (
+#define JP_RPAR  LS(N9)       // )
+
+
+/* ----- positional hold-tap (HRM) key-position sets -----
+ * Left alphas : 0-4 / 10-14 / 20-25
+ * Right alphas: 5-9 / 15-19 / 26-31
+ * Thumb/bottom: 32-39 (allowed for both sides)
+ */
+#define KEYS_R 5 6 7 8 9 15 16 17 18 19 26 27 28 29 30 31
+#define KEYS_L 0 1 2 3 4 10 11 12 13 14 20 21 22 23 24 25
+#define THUMBS 32 33 34 35 36 37 38 39
 
 &mt {
     flavor = "balanced";
@@ -11,94 +58,206 @@
 };
 
 / {
-    combos { compatible = "zmk,combos"; };
+    combos {
+        compatible = "zmk,combos";
 
-    macros {
-        to_layer_0: to_layer_0 {
-            compatible = "zmk,behavior-macro-one-param";
-            #binding-cells = <1>;
-            bindings = <&to 0 &macro_param_1to1 &kp MACRO_PLACEHOLDER>;
-            label = "TO_LAYER_0";
+        combo_caps_word {
+            bindings = <&caps_word>;
+            key-positions = <13 16>;     // F + J
+            timeout-ms = <50>;
+            require-prior-idle-ms = <150>;
         };
-    };
 
-    lt_to_layer_0: lt_to_layer_0 {
-        compatible = "zmk,behavior-hold-tap";
-        label = "LAYER_TAP_TO_0";
-        bindings = <&mo>, <&to_layer_0>;
+        combo_esc {
+            bindings = <&kp ESC>;
+            key-positions = <21 22>;     // X + C
+            layers = <0>;
+            timeout-ms = <30>;
+            require-prior-idle-ms = <50>;
+        };
 
-        #binding-cells = <2>;
-        tapping-term-ms = <200>;
+        combo_lbracket_ja {
+            bindings = <&kp JP_LBKT>;    // kana: 「 / eisu: [
+            key-positions = <28 29>;     // M + ,
+            layers = <0>;
+            timeout-ms = <40>;
+            require-prior-idle-ms = <30>;
+        };
+
+        combo_rbracket_ja {
+            bindings = <&kp JP_RBKT>;    // kana: 」 / eisu: ]
+            key-positions = <30 31>;     // . + /
+            layers = <0>;
+            timeout-ms = <40>;
+            require-prior-idle-ms = <30>;
+        };
     };
 };
 
 / {
     behaviors {
+        // Home-row mods : left hand. Hold resolves only when an
+        // opposite-hand (or thumb) key is pressed -> no same-hand misfires.
+        // Consequence: left-hand-only Ctrl+S etc. is NOT possible here;
+        // that is covered by the thumb mods at positions 32 (Shift) and 33 (Ctrl).
+        hml: home_row_mod_left {
+            compatible = "zmk,behavior-hold-tap";
+            label = "HOME_ROW_MOD_LEFT";
+            #binding-cells = <2>;
+            bindings = <&kp>, <&kp>;
+            flavor = "balanced";
+            tapping-term-ms = <280>;
+            quick-tap-ms = <175>;
+            require-prior-idle-ms = <150>;
+            hold-trigger-key-positions = <KEYS_R THUMBS>;
+            hold-trigger-on-release;
+        };
+
+        // Home-row mods : right hand.
+        hmr: home_row_mod_right {
+            compatible = "zmk,behavior-hold-tap";
+            label = "HOME_ROW_MOD_RIGHT";
+            #binding-cells = <2>;
+            bindings = <&kp>, <&kp>;
+            flavor = "balanced";
+            tapping-term-ms = <280>;
+            quick-tap-ms = <175>;
+            require-prior-idle-ms = <150>;
+            hold-trigger-key-positions = <KEYS_L THUMBS>;
+            hold-trigger-on-release;
+        };
+
+        // Tap-preferred hold-tap for thumb/corner dual keys.
+        // Tap fires reliably even when typing right after; hold needs ~200ms.
+        // NOTE: parameter order is <hold> <tap>.
+        //   &htp DEL F10             -> tap = F10, hold = Delete
+        //   &htp LSHFT TAB           -> tap = Tab, hold = Shift
+        //   &htp EXCLAMATION JP_YEN  -> tap = ¥,   hold = !
+        htp: hold_tap_preferred {
+            compatible = "zmk,behavior-hold-tap";
+            label = "HOLD_TAP_PREFERRED";
+            #binding-cells = <2>;
+            bindings = <&kp>, <&kp>;
+            flavor = "tap-preferred";
+            tapping-term-ms = <200>;
+        };
     };
 
+    /* ==========================================================
+     * Physical layout is 10 / 10 / 12 / 8  (40 keys).
+     * Every layer below is line-broken to match that, so a row in
+     * this file is a row on the board.
+     *
+     *   pos  0- 4 : left  top      pos  5- 9 : right top
+     *   pos 10-14 : left  home     pos 15-19 : right home
+     *   pos 20-25 : left  bottom   pos 26-31 : right bottom
+     *   pos 32-35 : left  thumb    pos 36-39 : right thumb
+     * ==========================================================
+     */
     keymap {
         compatible = "zmk,keymap";
 
+        /* L0 BASE
+         *   Q     W     E     R     T    |    Y     U     I     O     P
+         *  ⌘A    ⌥S    ⌃D    ⇧F     G    |    H    ⇧J    ⌃K    ⌥L    ⌘'
+         *   Z     X     C     V     B  ¥/! |  -     N     M     ,     .     /
+         * Tab/⇧   ⌃        Eisu₁ Spc₂ | Bsp Ent₃      Kana₅ F10/Del
+         */
         default_layer {
             bindings = <
-&kp Q             &kp W      &kp E      &kp R         &kp T           &kp Y        &kp U          &kp I        &kp O              &kp P
-&kp A             &kp S      &kp D      &kp F         &kp G           &kp H        &kp J          &kp K        &kp L              &kp SQT
-&mt LEFT_SHIFT Z  &kp X      &kp C      &kp V         &kp B           &lt 4 COLON  &kp BACKSLASH  &kp N        &kp M              &kp COMMA
-&kp DOT           &kp SLASH  &kp LCTRL  &kp LEFT_WIN  &lt 2 LEFT_ALT  &lt 3 SPACE  &kp BACKSPACE  &lt 1 ENTER  &kp RIGHT_CONTROL  &kp DEL
+&kp Q           &kp W          &kp E          &kp R          &kp T                                        &kp Y            &kp U            &kp I          &kp O          &kp P
+&hml LGUI A     &hml LALT S    &hml LCTRL D   &hml LSHFT F   &kp G                                        &kp H            &hmr RSHFT J     &hmr RCTRL K   &hmr RALT L    &hmr RGUI JP_QUOT
+&kp Z           &kp X          &kp C          &kp V          &kp B     &htp EXCLAMATION JP_YEN    &kp MINUS   &kp N         &kp M            &kp COMMA      &kp DOT        &kp SLASH
+&htp LSHFT TAB  &kp LCTRL      &lt L_SYM INT5  &lt L_NAV SPACE                                    &kp BACKSPACE   &lt L_FUNC ENTER   &lt L_SYS INT4   &htp DEL F10
             >;
         };
 
-        layer_1 {
+        /* L1 SYM/NUM  (Eisu hold, pos 34)
+         *  -  7  8  9  +   |   @  &  {  }  |
+         *  /  4  5  6  *   |   !  "  (  )  _
+         * ⇧0  1  2  3  .  =|  #  $  %  [  ]  :
+         *  x  x     ▽  x   |  ·  ·        ~  `
+         * pos 32/33/35 are unreachable (same thumb holds 34) -> kept transparent.
+         */
+        sym_layer {
             bindings = <
-&trans  &trans   &trans  &trans  &trans  &kp F1  &kp F2  &kp F3  &kp F4  &kp F5
-&trans  &trans   &trans  &trans  &trans  &kp F6  &kp F7  &kp F8  &kp F9  &kp F10
-&trans  &trans   &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans
-&trans  &kp F11  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &kp F12
+&kp MINUS                   &kp KP_NUMBER_7   &kp KP_NUMBER_8   &kp KP_NUMBER_9   &kp JP_PLUS                          &kp JP_AT         &kp JP_AMPS   &kp JP_LBRC   &kp JP_RBRC    &kp JP_PIPE
+&kp SLASH                   &kp KP_NUMBER_4   &kp KP_NUMBER_5   &kp KP_NUMBER_6   &kp JP_ASTR                          &kp EXCLAMATION   &kp JP_DQT    &kp JP_LPAR   &kp JP_RPAR    &kp JP_UNDER
+&mt LEFT_SHIFT KP_NUMBER_0  &kp KP_NUMBER_1   &kp KP_NUMBER_2   &kp KP_NUMBER_3   &kp PERIOD   &kp JP_EQL   &kp HASH   &kp DOLLAR        &kp PERCENT   &kp JP_LBKT   &kp JP_RBKT    &kp JP_COLON
+&trans                  &trans      &trans      &trans                                 &trans     &trans        &kp JP_TILDE  &kp JP_GRAVE
             >;
         };
 
-        layer_2 {
+        /* L2 NAV  (Space hold, pos 35)
+         * Esc C⇧⇥  ·  C⇥   ·   |    ·  Hom  ↑  End  ·
+         *  ·  ⌘⇧←  ·  ⌘⇧→  ·   |   PgU  ←   ↓   →  PgD
+         *  ⇧  ⌥←   ⌃  ⌥→   ·  ·|  ·  ·   ·   ·   ·   ·
+         *  x  x        x   ▽   |  ·  ·        ·   ·
+         * pos 20/22 carry Shift/Ctrl because the left thumb is busy holding 35.
+         */
+        nav_layer {
             bindings = <
-&kp MINUS                   &kp KP_NUMBER_7  &kp KP_NUMBER_8  &kp KP_NUMBER_9  &kp PLUS      &kp CARET        &kp AMPERSAND  &kp TILDE         &kp LEFT_PARENTHESIS  &kp RIGHT_PARENTHESIS
-&kp SLASH                   &kp KP_NUMBER_4  &kp KP_NUMBER_5  &kp KP_NUMBER_6  &kp ASTERISK  &kp EXCLAMATION  &kp AT_SIGN    &kp HASH          &kp DOLLAR            &kp PERCENT
-&mt LEFT_SHIFT KP_NUMBER_0  &kp KP_NUMBER_1  &kp KP_NUMBER_2  &kp KP_NUMBER_3  &kp PERIOD    &kp EQUAL        &trans         &kp LEFT_BRACKET  &kp RIGHT_BRACKET     &kp LEFT_BRACE
-&kp RIGHT_BRACE             &kp BACKSLASH    &trans           &trans           &trans        &trans           &trans         &trans            &trans                &kp PIPE
+&kp ESCAPE    &kp LC(LS(TAB))         &trans       &kp LC(TAB)              &trans                    &trans     &kp HOME        &kp UP_ARROW    &kp END          &trans
+&trans        &kp LG(LS(LEFT_ARROW))  &trans       &kp LG(LS(RIGHT_ARROW))  &trans                    &kp PG_UP  &kp LEFT_ARROW  &kp DOWN_ARROW  &kp RIGHT_ARROW  &kp PG_DN
+&kp LSHFT     &kp LA(LEFT_ARROW)      &kp LCTRL    &kp LA(RIGHT_ARROW)      &trans   &trans     &trans   &trans   &trans          &trans          &trans           &trans
+&trans        &trans                  &trans       &trans                                      &trans   &trans   &trans          &trans
             >;
         };
 
-        layer_3 {
+        /* L3 FUNC/CLICK  (Enter hold, pos 37)
+         * F1  F2  F3  F4  F5  |   ·   ·    ·    ·   ·
+         * F6  F7  F8  F9  F10 |   ·  MB1  MB3  MB2  ·
+         * F11 F12  ·  ·  ·  · | ·  ·  ·    ·    ·   ·
+         *  ·   ·       ·   ·  | ·  ▽       ·    ·
+         * Manual click path. Buttons sit at 16/17/18 -- identical to L4 -- so the
+         * automatic and manual paths never disagree about where the buttons are.
+         * Left thumb stays free here, so pos 32 (⇧) / 33 (⌃) give Shift+click etc.
+         */
+        func_layer {
             bindings = <
-&kp ESCAPE      &kp LC(LS(TAB))         &kp UP_ARROW    &kp LC(TAB)              &trans   &trans  &trans  &trans  &trans  &trans
-&kp HOME        &kp LEFT_ARROW          &kp DOWN_ARROW  &kp RIGHT_ARROW          &kp END  &trans  &trans  &trans  &trans  &trans
-&kp LEFT_SHIFT  &kp LG(LS(LEFT_ARROW))  &trans          &kp LG(LS(RIGHT_ARROW))  &trans   &trans  &trans  &trans  &trans  &trans
-&trans          &trans                  &trans          &trans                   &trans   &trans  &trans  &trans  &trans  &trans
+&kp F1     &kp F2    &kp F3   &kp F4   &kp F5                            &trans   &trans        &trans        &trans        &trans
+&kp F6     &kp F7    &kp F8   &kp F9   &kp F10                           &trans   &mkp MB1      &mkp MB3      &mkp MB2      &trans
+&kp F11    &kp F12   &trans   &trans   &trans   &trans          &trans   &trans   &trans        &trans        &trans        &trans
+&trans     &trans    &trans   &trans                            &trans   &trans   &trans        &trans
             >;
         };
 
-        layer_4 {
+        /* L4 MOUSE  (trackball auto ON only -- no manual entry)
+         * KEEP EVERYTHING EXCEPT 16/17/18 TRANSPARENT.
+         * A non-excluded key press deactivates this layer, but whether that
+         * happens before or after the key resolves is implementation-defined in
+         * zmk,input-processor-temp-layer. Transparency makes both orders
+         * indistinguishable. Putting real bindings here would expose the race.
+         */
+        mouse_layer {
             bindings = <
-&trans  &trans      &trans  &trans  &trans  &bt BT_SEL 0  &bt BT_SEL 1  &bt BT_SEL 2  &bt BT_SEL 3  &bt BT_SEL 4
-&trans  &trans      &trans  &trans  &trans  &trans        &trans        &trans        &trans        &trans
-&trans  &trans      &trans  &trans  &trans  &trans        &bootloader   &trans        &trans        &trans
-&trans  &bt BT_CLR  &trans  &trans  &trans  &trans        &trans        &trans        &trans        &bt BT_CLR_ALL
+&trans   &trans   &trans   &trans   &trans                     &trans   &trans     &trans     &trans     &trans
+&trans   &trans   &trans   &trans   &trans                     &trans   &mkp MB1   &mkp MB3   &mkp MB2   &trans
+&trans   &trans   &trans   &trans   &trans   &trans    &trans  &trans   &trans     &trans     &trans     &trans
+&trans   &trans   &trans   &trans                      &trans  &trans   &trans     &trans
             >;
         };
 
-        layer_5 {
+        /* L5 SYS/BT  (Kana hold, pos 38)
+         *   ·     ·   ·    ·   ·     |  BT0 BT1 BT2 BT3 BT4
+         *   ·     ·   ·    ·   ·     |   ·   ·   ·   ·   ·
+         * CLRa    ·  CLR   ·  BOOT · | ·  ·   ·   ·   ·   ·
+         *   ·     ·           ·   ·  | ·  ·       ▽   x
+         * Entry key (Kana) is hard to reach on purpose: this layer must not be
+         * entered by accident. The destructive keys are on the LEFT hand so that
+         * reaching them needs a deliberate two-handed action, ordered by danger:
+         *   pos 20 (far pinky) = BT_CLR_ALL   most destructive -> hardest to hit
+         *   pos 22 (middle)    = BT_CLR
+         *   pos 24 (index)     = bootloader   wanted on purpose when flashing
+         * pos 21/23/25 left empty so a slip does not land on another danger key.
+         * pos 39 is unreachable (same thumb holds 38).
+         */
+        sys_layer {
             bindings = <
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans
-            >;
-        };
-
-        MOUSE {
-            bindings = <
-&trans  &trans  &trans  &trans  &trans  &trans  &trans    &trans    &trans    &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &mkp MB1  &mkp MB3  &mkp MB2  &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &trans    &trans    &trans    &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &trans    &trans    &trans    &trans
+&trans            &trans   &trans        &trans   &trans                              &bt BT_SEL 0   &bt BT_SEL 1   &bt BT_SEL 2   &bt BT_SEL 3   &bt BT_SEL 4
+&trans            &trans   &trans        &trans   &trans                              &trans         &trans         &trans         &trans         &trans
+&bt BT_CLR_ALL    &trans   &bt BT_CLR    &trans   &bootloader   &trans      &trans    &trans         &trans         &trans         &trans         &trans
+&trans            &trans   &trans        &trans                             &trans    &trans         &trans         &trans
             >;
         };
     };
