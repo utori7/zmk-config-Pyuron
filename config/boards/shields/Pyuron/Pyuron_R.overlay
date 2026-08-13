@@ -35,6 +35,31 @@
     };
 };
 
+/ {
+    /* Enables layer 4 (MOUSE) automatically while the right
+     * trackball (pointer) is moving, and turns it off 1000ms
+     * after movement stops (see the timeout argument below).
+     * The mouse-button positions on layer 4
+     * (J/K/L = MB1/MB3/MB2 = positions 16/17/18) are excluded so
+     * clicking does not immediately drop the layer.
+     *
+     * The 1000ms timeout cuts both ways: it is short enough that
+     * "move -> pause -> click" can fall out of the layer, and long
+     * enough that a `k` typed right after moving becomes a middle
+     * click. The manual path for the first case is Enter-hold
+     * (layer FUNC), which puts the same buttons at 16/17/18.
+     *
+     * require-prior-idle-ms keeps the layer from engaging when the
+     * ball is brushed mid-typing; 150 matches the home-row mods.
+     */
+    zip_mouse_temp_layer: zip_mouse_temp_layer {
+        compatible = "zmk,input-processor-temp-layer";
+        #input-processor-cells = <2>;
+        require-prior-idle-ms = <150>;
+        excluded-positions = <16 17 18>;
+    };
+};
+
 &trackball_listener_L {
     status = "okay";
 };
@@ -42,6 +67,9 @@
 &trackball_listener_R {
     status = "okay";
     device = <&trackball_R>;
+    input-processors =
+        <&zip_xy_transform (INPUT_TRANSFORM_XY_SWAP | INPUT_TRANSFORM_Y_INVERT)>,
+        <&zip_mouse_temp_layer 4 1000>;
 };
 
 &spi0 {
