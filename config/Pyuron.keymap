@@ -181,9 +181,9 @@
          */
         sym_layer {
             bindings = <
-&kp MINUS                   &kp KP_NUMBER_7   &kp KP_NUMBER_8   &kp KP_NUMBER_9   &kp JP_PLUS                          &kp JP_AT         &kp JP_AMPS   &kp JP_LBRC   &kp JP_RBRC    &kp JP_PIPE
-&kp SLASH                   &kp KP_NUMBER_4   &kp KP_NUMBER_5   &kp KP_NUMBER_6   &kp JP_ASTR                          &kp EXCLAMATION   &kp JP_DQT    &kp JP_LPAR   &kp JP_RPAR    &kp JP_UNDER
-&mt LEFT_SHIFT KP_NUMBER_0  &kp KP_NUMBER_1   &kp KP_NUMBER_2   &kp KP_NUMBER_3   &kp PERIOD   &kp JP_EQL   &kp HASH   &kp DOLLAR        &kp PERCENT   &kp JP_LBKT   &kp JP_RBKT    &kp JP_COLON
+&kp MINUS            &kp N7   &kp N8   &kp N9   &kp JP_PLUS                          &kp JP_AT         &kp JP_AMPS   &kp JP_LBRC   &kp JP_RBRC    &kp JP_PIPE
+&kp SLASH            &kp N4   &kp N5   &kp N6   &kp JP_ASTR                          &kp EXCLAMATION   &kp JP_DQT    &kp JP_LPAR   &kp JP_RPAR    &kp JP_UNDER
+&mt LEFT_SHIFT N0    &kp N1   &kp N2   &kp N3   &kp PERIOD   &kp JP_EQL   &kp HASH   &kp DOLLAR        &kp PERCENT   &kp JP_LBKT   &kp JP_RBKT    &kp JP_COLON
 &trans                  &trans      &trans      &trans                                 &trans     &trans        &kp JP_TILDE  &kp JP_GRAVE
             >;
         };
@@ -243,6 +243,10 @@
          *   ·     ·   ·    ·   ·     |   ·   ·   ·   ·   ·
          * CLRa    ·  CLR   ·  BOOT · | ·  ·   ·   ·   ·   ·
          *   ·     ·           ·   ·  | ·  ·       ▽   x
+         *
+         * No NumLock key here on purpose: L_SYM uses plain digit codes, so
+         * nothing on this board depends on NumLock, and NumLock is global host
+         * state -- toggling it would break an external numpad instead.
          * Entry key (Kana) is hard to reach on purpose: this layer must not be
          * entered by accident. The destructive keys are on the LEFT hand so that
          * reaching them needs a deliberate two-handed action, ordered by danger:
