@@ -14,6 +14,10 @@
 #define L_FUNC   3   // F-keys / mouse click - Enter hold (pos 37)
 #define L_MOUSE  4   // click only           - trackball auto ON
 #define L_SYS    5   // bluetooth / boot     - Kana hold  (pos 38)
+/* Layer-entry signal keys for the PC-side keymap overlay.
+ * Must come after the L_* defines above.
+ */
+#include "layer-signal.dtsi"
 
 /* ===== JIS (Japanese 106/109) symbol aliases =====
  * Precondition: OS keyboard layout = JIS on ALL hosts.
@@ -168,7 +172,7 @@
 &kp Q           &kp W          &kp E          &kp R          &kp T                                        &kp Y            &kp U            &kp I          &kp O          &kp P
 &hml LGUI A     &hml LALT S    &hml LCTRL D   &hml LSHFT F   &kp G                                        &kp H            &hmr RSHFT J     &hmr RCTRL K   &hmr RALT L    &hmr RGUI JP_QUOT
 &kp Z           &kp X          &kp C          &kp V          &kp B     &htp EXCLAMATION JP_YEN    &kp MINUS   &kp N         &kp M            &kp COMMA      &kp DOT        &kp SLASH
-&htp LSHFT TAB  &kp LCTRL      &lt L_SYM INT5  &lt L_NAV SPACE                                    &kp BACKSPACE   &lt L_FUNC ENTER   &lt L_SYS INT4   &htp DEL F10
+&htp LSHFT TAB  &kp LCTRL      &lt_sym L_SYM INT5  &lt_nav L_NAV SPACE                                    &kp BACKSPACE   &lt_func L_FUNC ENTER   &lt_sys L_SYS INT4   &htp DEL F10
             >;
         };
 
